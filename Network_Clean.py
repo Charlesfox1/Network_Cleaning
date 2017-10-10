@@ -12,14 +12,14 @@ from osgeo import ogr
 import shapely.ops
 
 #Settings
-district = str(raw_input('\nDistrict Code: (YD | TT) '))
+district = "YD" #str(raw_input('\nDistrict Code: (YD | TT) '))
 crs_in = {'init': 'epsg:4326'}   #WGS 84
 crs_measure = {'init': 'epsg:32648'} #UTM zone 48N
 bufwidth = 0.00025 # width to buffer initial roads
 road_too_small_m = 30 # length of roads to delete (metres, crs_measure)
 accuracy_of_centerlines = bufwidth / 4 # simplification of polygons for calculating centerline. Seems to work well.
 verbose = 1 # Print mid-script actions or not
-acceptable_suspension_settings = ['MEDIUM', 'HARD-MEDIUM'] #Filter for Point cloud on suspension
+acceptable_suspension_settings = ['MEDIUM', 'HARD-MEDIUM','SUV'] #Filter for Point cloud on suspension
 low_speed = 20 #Filter for Point cloud on speed: lowest speed for IRI to be considered valid
 high_speed = 40 #Filter for Point cloud on speed: highest speed for IRI to be considered valid
 timethresh = r'01/01/2017' #Filter for Point cloud on time: earliest IRI reading to be considered valid
@@ -29,8 +29,8 @@ VPROMMS_ID_certainty_thresh = 0.75 #When re-attaching VPROMMS_IDs, assign certai
 
 #Input files
 linefile = r'Adj_lines.csv'
-path = r'C:\Users\charl\Documents\GitHub\RoadLabPro_Utils\\'
-runtime = r'C:\Users\charl\Documents\GitHub\RoadLabPro_Utils\Runtime\%s\\' % district
+path = r'C:\Users\WB411133\OneDrive - WBG\AAA_BPS\Code\Code\Github\RoadLabPro_Utils'
+runtime = r'C:\Users\WB411133\OneDrive - WBG\AAA_BPS\Code\Code\Github\RoadLabPro_Utils\Runtime\%s\\' % district
 RawPoints = r'Original_Points.csv'
 RawLines = r'Original_Intervals.csv'
 
@@ -182,21 +182,26 @@ def RoadCleanup(inputroads, inputjunctions, n):
     OutJunctions = OutJunctions.loc[OutJunctions['points'] >= 3]
     OutJunctions['Junction'] = OutJunctions['Junction'].map(shapely.wkt.loads)
     Filedump(OutJunctions, 'Outjunctions_%d'%n)
+    Filedump(good_roads, 'good_roads_%d'%n)
 
     Vprint('    Resplit roads on new junctions')
     Phase2_final_df = pd.DataFrame(columns = ['WKT'])
     points = MultiPoint(OutJunctions['Junction'])
     good_roads['shapely'] = good_roads['lines'].map(shapely.wkt.loads)
-    line = MultiLineString(good_roads['shapely'].tolist())
-    line = shapely.ops.linemerge(line)
-    Filedump(pd.DataFrame({'junctions':[points]}),'POINTS_%s' % n)
-    Filedump(pd.DataFrame({'line':[line]}),'LINE_%s' % n)
-    splitted = shapely.ops.split(line, points)
+    good_roads_list = good_roads['shapely'].tolist()
     roads = []
-    for x in splitted:
-        roads.append(str(x))
+    
+    for gRoad in good_roads_list:
+        line = MultiLineString([gRoad])
+        line = shapely.ops.linemerge(line)
+        Filedump(pd.DataFrame({'junctions':[points]}),'POINTS_%s' % n)
+        Filedump(pd.DataFrame({'line':[line]}),'LINE_%s' % n)
+        splitted = shapely.ops.split(line, points)
+        for x in splitted:
+            roads.append(str(x))
+            
     OutRoads = pd.DataFrame(roads)
-    Filedump(OutRoads, 'Outroads_%d'%n)
+    Filedump(OutRoads, 'Outroads_%d' % n)
     return OutRoads, OutJunctions
 
 iteration_roads, iteration_junctions = RoadCleanup(Phase_1_roads, Phase_1_junctions, 1)
@@ -205,7 +210,7 @@ Filedump(phase_2_final_roads,'phase2')
 ################################################################################
 Vprint('**Phase 3: Re-assign attribute data**')
 #Prep Attribute data as centroids of line features
-IRI = pd.read_csv(runtime+RawLines)
+IRI = pd.read_csv(os.path.join(runtime,RawLines))
 gIRI = gpd.GeoDataFrame(IRI, crs = crs_in, geometry = IRI['Line_Geometry'].map(shapely.wkt.loads))
 gIRI['centre'] = gIRI['geometry'].centroid
 gIRI = gIRI.set_geometry('centre')
@@ -218,7 +223,6 @@ gIRI = gIRI.loc[
     (gIRI['suspension'].isin(acceptable_suspension_settings))
     ]
 gIRI['geometry'] = gIRI['centre']
-
 Vprint('    Prepare the Road network')
 Network = phase_2_final_roads
 Network['ID'] = Network.index
@@ -226,7 +230,6 @@ Network.columns = ['Line_Geometry','ID']
 gNetwork = gpd.GeoDataFrame(Network, crs = crs_in, geometry = Network['Line_Geometry'].map(shapely.wkt.loads))
 gNetwork['Buffer'] = gNetwork.geometry.apply(lambda g: g.buffer(bufwidth, cap_style=2))
 gNetwork['geometry'] = gNetwork['Buffer']
-
 Vprint('    Stitch on to new network the original IRI readings')
 JoinIRI = gpd.sjoin(gNetwork, gIRI, how="inner",op='intersects')
 JoinIRI = JoinIRI[['ID','Line_Geometry','speed','iri']]
