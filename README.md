@@ -9,6 +9,6 @@ Scripts for converting [RoadLabPro](https://github.com/WorldBank-Transport/RoadL
 
 ## Running
 
-Run `Network_Prep.py` first. This produces a single output that contains all input roads, conflated with their nearby road quality properties.
+Run `Network_Prep.py` first. This produces two outputs, that contain all input roads and all road quality point-properties.
 
-Then, use that as an input to `Network_Clean.py`, which will make this network routable.
+Then, use those as an input to `Network_Clean.py`, which will make this network routable, and conflate point-properties to their nearest roads.
