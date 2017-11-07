@@ -1,24 +1,23 @@
+# Allow import of modified libraries
+import sys
+sys.path.append('Modified_Libs')
+
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point, LineString, MultiPoint
 import shapely.wkt
-import glob2
-import re
-import sys, os
-from scipy import stats, integrate
-import matplotlib.pyplot as plt
-import seaborn as sns
+import fnmatch
+import os
 import pyproj
 import time
 from datetime import datetime
 
 #Inputs
 valid_roads = raw_input('\nRemove all non-VPROMMS_ID roads? y = yes, n = no\n')
-district = str(raw_input('\nDistrict Code: (YD | TT) '))
-InPath = r'C:\Users\charl\Documents\Vietnam\Fieldwork\\roadlab_bin_%s' % district
-OutPath = r'C:\Users\charl\Documents\GitHub\RoadLabPro_Utils\\Runtime\\%s' % district
-runtime = r'C:\Users\charl\Documents\GitHub\RoadLabPro_Utils\\Runtime\\%s' % district
+InPath = os.path.join('data', 'input')
+OutPath = os.path.join('data', 'output')
+runtime = os.path.join('data', 'output')
 sdthresh = 0.5
 verbose = 1
 crs_in = {'init': 'epsg:4326'}   #WGS84
@@ -43,7 +42,10 @@ def Vprint(s):
         print '\n%s -- %s' % (st, s)
 
 # Step 1: Aggregate original intervals
-intervals_list = glob2.glob(InPath+'\\'+'**'+'\\*intervals*.csv')
+intervals_list = []
+for root, dirnames, filenames in os.walk(InPath):
+    for filename in fnmatch.filter(filenames, '*Intervals*.csv'):
+        intervals_list.append(os.path.join(root, filename))
 dataframes = []
 for file_ in intervals_list:
     df = pd.DataFrame(pd.read_csv(file_))
@@ -51,12 +53,10 @@ for file_ in intervals_list:
     dataframes.append(df)
 X = pd.concat(dataframes, ignore_index=True)
 X['Line_Geometry'] = 'LINESTRING ('+X['start_lon'].map(str)+' '+X['start_lat'].map(str)+', '+X['end_lon'].map(str)+' '+X['end_lat'].map(str)+')'
-X['Part1'] = X['Input_file'].map(str).str.extract(('(bin.*\.csv)'), expand=False)
-X['Part1'] = X['Part1'].map(str).str.replace('bin', '').str.replace('\.csv', '')
-X['Part1'] = X['Part1'].str.split('\\').str.get(-3)
-X['Part2'] = X['Input_file'].map(str).str.extract(('(bin.*\.csv)'),expand=False)
-X['Part2'] = X['Part2'].map(str).str.replace('bin', '').str.replace('\.csv', '')
-X['Part2'] = X['Part2'].str.split('\\').str.get(-2)
+X['Part1'] = X['Input_file'].map(str).str.extract(('{}(.*)\.csv'.format(InPath)), expand=False)
+X['Part1'] = X['Part1'].str.split(os.sep).str.get(-3)
+X['Part2'] = X['Input_file'].map(str).str.extract(('{}(.*)\.csv'.format(InPath)), expand=False)
+X['Part2'] = X['Part2'].str.split(os.sep).str.get(-2)
 for y in X.Part1.unique():
     miniframe = X.loc[X['Part1'] == y]
     n = 1
@@ -73,7 +73,10 @@ Original_Intervals = X
 FileOut(Original_Intervals,'Original_Intervals')
 
 # Step 2: Aggregate original Point files
-pointframe_list = glob2.glob(InPath+'\\'+'**'+'\\*RoadPath'+'*.csv')
+pointframe_list = []
+for root, dirnames, filenames in os.walk(InPath):
+    for filename in fnmatch.filter(filenames, '*RoadPath*.csv'):
+        pointframe_list.append(os.path.join(root, filename))
 dataframes = []
 for file_ in pointframe_list:
     df = pd.DataFrame(pd.read_csv(file_))
@@ -81,12 +84,10 @@ for file_ in pointframe_list:
     dataframes.append(df)
 Y = pd.concat(dataframes, ignore_index=True)
 Y['Point_Geometry'] = 'POINT ('+Y['longitude'].map(str)+' '+Y['latitude'].map(str)+')'
-Y['Part1'] = Y['Input_file'].map(str).str.extract(('(bin.*\.csv)'),expand=False)
-Y['Part1'] = Y['Part1'].map(str).str.replace('bin', '').str.replace('\.csv', '')
-Y['Part1'] = Y['Part1'].str.split('\\').str.get(-3)
-Y['Part2'] = Y['Input_file'].map(str).str.extract(('(bin.*\.csv)'),expand=False)
-Y['Part2'] = Y['Part2'].map(str).str.replace('bin', '').str.replace('\.csv', '')
-Y['Part2'] = Y['Part2'].str.split('\\').str.get(-2)
+Y['Part1'] = Y['Input_file'].map(str).str.extract(('{}(.*)\.csv'.format(InPath)), expand=False)
+Y['Part1'] = Y['Part1'].str.split(os.sep).str.get(-3)
+Y['Part2'] = Y['Input_file'].map(str).str.extract(('{}(.*)\.csv'.format(InPath)), expand=False)
+Y['Part2'] = Y['Part2'].str.split(os.sep).str.get(-2)
 for y in Y.Part1.unique():
     miniframe = Y.loc[Y['Part1'] == y]
     n = 1
