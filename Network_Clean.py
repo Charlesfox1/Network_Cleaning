@@ -1,3 +1,7 @@
+# Allow import of modified libraries
+import sys
+sys.path.append('Modified_Libs')
+
 import geopandas as gpd
 from centerline.shp2centerline import *
 import time
@@ -8,11 +12,9 @@ import shapely.wkt
 import os
 import re
 from shapely.geometry import Point, LineString, MultiPoint, MultiLineString
-from osgeo import ogr
 import shapely.ops
 
 #Settings
-district = "YD" #str(raw_input('\nDistrict Code: (YD | TT) '))
 crs_in = {'init': 'epsg:4326'}   #WGS 84
 crs_measure = {'init': 'epsg:32648'} #UTM zone 48N
 bufwidth = 0.00025 # width to buffer initial roads
@@ -29,8 +31,7 @@ VPROMMS_ID_certainty_thresh = 0.75 #When re-attaching VPROMMS_IDs, assign certai
 
 #Input files
 linefile = r'Adj_lines.csv'
-path = r'C:\Users\WB411133\OneDrive - WBG\AAA_BPS\Code\Code\Github\RoadLabPro_Utils'
-runtime = r'C:\Users\WB411133\OneDrive - WBG\AAA_BPS\Code\Code\Github\RoadLabPro_Utils\Runtime\%s\\' % district
+runtime = os.path.join('data', 'output')
 RawPoints = r'Original_Points.csv'
 RawLines = r'Original_Intervals.csv'
 
@@ -66,7 +67,9 @@ def opVID(x):
     y = pd.DataFrame(x['VPROMMS_ID'].str[:10].value_counts(normalize = True).reset_index())
     y.columns = ['VID','Fraction']
     a, b = y.VID.tolist(), y.Fraction.tolist()
-    if b[0] > VPROMMS_ID_certainty_thresh:
+    if len(b) == 0:
+        d = None
+    elif b[0] > VPROMMS_ID_certainty_thresh:
         d = a[0]
     else:
         d = 'Input VPROMMS: '
@@ -79,7 +82,7 @@ def opVID(x):
 Vprint('**Phase 1: Create snapped road network**')
 
 Vprint('Read in Roads file, buffer all lines')
-roadlines = pd.read_csv(runtime+linefile)
+roadlines = pd.read_csv(os.path.join(runtime, linefile))
 gdf_lines = gpd.GeoDataFrame(roadlines, crs=crs_in, geometry = roadlines['Line_Geometry'].map(shapely.wkt.loads))
 gdf_lines['Buffer'] = gdf_lines['geometry'].buffer(bufwidth)
 gdf_lines = gdf_lines.set_geometry('Buffer')
@@ -97,11 +100,11 @@ Filedump(sausages,'temp')
 sausages = gpd.GeoDataFrame(sausages, crs = crs_in, geometry = sausages['geometry'].map(shapely.wkt.loads))
 sausages.to_file(os.path.join(runtime, 'temp.shp'), driver = 'ESRI Shapefile')
 tempfile = 'temp.shp'
-targ = runtime + tempfile
+targ = os.path.join(runtime, tempfile)
 
-#Shp2centerline(targ, runtime+r'\\output_%s.shp' % accuracy_of_centerlines, accuracy_of_centerlines)
+Shp2centerline(targ, os.path.join(runtime, 'output_%s.shp' % accuracy_of_centerlines), accuracy_of_centerlines)
 
-a = gpd.read_file(runtime + r'\\output_%s.shp' % accuracy_of_centerlines)
+a = gpd.read_file(os.path.join(runtime, 'output_%s.shp' % accuracy_of_centerlines))
 a['Shapelyobj'] = a['geometry']
 a['WKTgeometry'] = a['geometry'].map(str)
 
@@ -237,7 +240,7 @@ JoinIRI = JoinIRI.groupby(['ID']).apply(lambda x: opIRI(x))
 Network = Network.drop(['Buffer','geometry'], axis = 1).merge(JoinIRI, how = 'left', on= 'ID')
 
 Vprint('    Stitch on to new network the original VPROMMS_ID tags')
-VID = pd.read_csv(runtime+RawPoints)
+VID = pd.read_csv(os.path.join(runtime, RawPoints))
 VID = VID[['Point_Geometry','VPROMMS_ID']]
 gVID = gpd.GeoDataFrame(VID, crs = crs_in, geometry = VID['Point_Geometry'].map(shapely.wkt.loads))
 JoinVID = gpd.sjoin(gNetwork, gVID, how="inner",op='intersects')
