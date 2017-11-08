@@ -67,7 +67,9 @@ def opVID(x):
     y = pd.DataFrame(x['VPROMMS_ID'].str[:10].value_counts(normalize = True).reset_index())
     y.columns = ['VID','Fraction']
     a, b = y.VID.tolist(), y.Fraction.tolist()
-    if b[0] > VPROMMS_ID_certainty_thresh:
+    if len(b) == 0:
+        d = None
+    elif b[0] > VPROMMS_ID_certainty_thresh:
         d = a[0]
     else:
         d = 'Input VPROMMS: '
