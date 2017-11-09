@@ -5,6 +5,11 @@
 -- So, instead of building a network form a directory of RoadLabPro runs,
 -- you could build one from the ORMA–VN database
 
+-- Pass the first two digits of the VPRoMMS road IDs in as `province_code`,
+-- eg, `psql ${DATABASE_URL} -f export-prepped-from-database.sql -v province_code=02`
+-- Alternatively, run with `-v province_code=` to capture all roads that
+-- have non-null VPRoMMS road IDs
+
 BEGIN;
 
     -- Generating `Original_Intervals.csv`
@@ -76,7 +81,8 @@ BEGIN;
             g.or_vpromms AS "VPROMMS_ID",
             ST_LENGTH(g.geom::GEOGRAPHY) / 1000 AS length
         FROM adj_lines_roads AS g
-        LEFT JOIN road_properties AS p ON g.or_vpromms = p.id;
+        LEFT JOIN road_properties AS p ON g.or_vpromms = p.id
+        WHERE g.or_vpromms LIKE :'province_code' || '%';
 
     \copy (SELECT * FROM adj_lines) to data/output/Adj_lines.csv CSV HEADER
 
