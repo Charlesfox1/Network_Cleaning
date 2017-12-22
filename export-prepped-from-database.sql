@@ -58,8 +58,7 @@ BEGIN;
         LEFT JOIN current_way_tags AS wt ON
             wt.way_id = wn.way_id AND
             wt.k = 'or_vpromms'
-        WHERE w.visible IS TRUE AND
-            wt.v IS NOT NULL
+        WHERE w.visible IS TRUE
         ORDER BY wn.way_id,
             wt.v,
             wn.sequence_id;
