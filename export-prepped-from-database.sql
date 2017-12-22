@@ -82,7 +82,10 @@ BEGIN;
             ST_LENGTH(g.geom::GEOGRAPHY) / 1000 AS length
         FROM adj_lines_roads AS g
         LEFT JOIN road_properties AS p ON g.or_vpromms = p.id
-        WHERE g.or_vpromms LIKE :'province_code' || '%';
+        LEFT JOIN admin_boundaries AS a ON
+            ST_INTERSECTS(g.geom, a.geom) AND
+            a.type = 'province'
+        WHERE a.id = :'province_code'::INTEGER;
 
     \copy (SELECT * FROM adj_lines) to data/output/Adj_lines.csv CSV HEADER
 
