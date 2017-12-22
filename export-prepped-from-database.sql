@@ -65,6 +65,7 @@ BEGIN;
 
     CREATE TEMP VIEW adj_lines_roads AS
         SELECT ST_MAKELINE(ARRAY_AGG(geom)) AS geom,
+            way_id,
             or_vpromms
         FROM adj_lines_nodes
         GROUP BY way_id,
@@ -72,7 +73,7 @@ BEGIN;
 
     CREATE TEMP VIEW adj_lines AS
         SELECT ST_ASTEXT(g.geom) AS "Line_Geometry",
-            ROW_NUMBER() OVER () AS "ID",
+            way_id AS "ID",
             p.properties ->> 'iri_mean' AS iri_mean,
             p.properties ->> 'iri_med' AS iri_med,
             p.properties ->> 'iri_min' AS iri_min,
