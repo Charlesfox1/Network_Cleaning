@@ -29,7 +29,7 @@ BEGIN;
             road_id AS "VPROMMS_ID"
         FROM point_properties;
 
-    \copy (SELECT * FROM original_intervals) to data/output/Original_Intervals.csv CSV HEADER
+    \copy (SELECT * FROM original_intervals) TO data/output/Original_Intervals.csv CSV HEADER
 
 
     -- Generating `Original_Points.csv`
@@ -41,7 +41,7 @@ BEGIN;
             road_id AS "VPROMMS_ID"
         FROM point_properties;
 
-    \copy (SELECT * FROM original_points) to data/output/Original_Points.csv CSV HEADER
+    \copy (SELECT * FROM original_points) TO data/output/Original_Points.csv CSV HEADER
 
 
     -- Generating `Adj_lines.csv`
@@ -87,6 +87,15 @@ BEGIN;
             a.type = 'province'
         WHERE a.id = :'province_code'::INTEGER;
 
-    \copy (SELECT * FROM adj_lines) to data/output/Adj_lines.csv CSV HEADER
+    \copy (SELECT * FROM adj_lines) TO data/output/Adj_lines.csv CSV HEADER
+
+
+    -- Dump province boundary itself, for reference
+    CREATE TEMP VIEW target_boundary AS
+        SELECT ST_ASGEOJSON(geom)
+        FROM admin_boundaries
+        WHERE id = :'province_code'::INTEGER;
+
+    \copy (SELECT * FROM target_boundary) TO 'target-boundary.geojson'
 
 COMMIT;
